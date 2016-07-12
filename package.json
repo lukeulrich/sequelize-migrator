@@ -1,6 +1,6 @@
 {
   "name": "sequelize-migrator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Transactional database migrations using the SequelizeJS library",
   "main": "index.js",
   "scripts": {

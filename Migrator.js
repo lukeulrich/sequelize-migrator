@@ -335,7 +335,7 @@ class Migrator {
 		let migrationFile = path.resolve(this.migrationFilePath_, migrationFileName)
 		return readFile(migrationFile, 'utf8')
 		.then((sql) => {
-			return migrationSqlParse.parse(sql)
+			return migrationSqlParse(sql)
 		})
 	}
 
