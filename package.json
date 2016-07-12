@@ -1,0 +1,33 @@
+{
+  "name": "sequelize-migrator",
+  "version": "1.0.0",
+  "description": "Transactional database migrations using the SequelizeJS library",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukeulrich/sequelize-migrator.git"
+  },
+  "keywords": [
+    "sequelize",
+    "migrations",
+    "transactions",
+    "lock"
+  ],
+  "author": "Luke Ulrich <lukeulrich@users.noreply.github.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lukeulrich/sequelize-migrator/issues"
+  },
+  "homepage": "https://github.com/lukeulrich/sequelize-migrator#readme",
+  "devDependencies": {
+    "bunyan": "^1.8.1",
+    "chai": "^3.5.0",
+    "mocha": "^2.5.3"
+  },
+  "dependencies": {
+    "bluebird": "^3.4.1"
+  }
+}
