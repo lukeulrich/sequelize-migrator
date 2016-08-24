@@ -1,7 +1,10 @@
 'use strict'
 
+// Vendor
+const expect = require('chai').expect
+
 // Local
-let parse = require('./migration-sql-parse')
+const parse = require('./migration-sql-parse')
 
 describe('Migration SQL Parser', function() {
 	describe('parse', function() {
@@ -36,11 +39,11 @@ describe('Migration SQL Parser', function() {
 				'create table names (id serial, name text)\n'
 			let downSql = '-- Some down sql\n' +
 				'drop table names'
-			let sql = upSql + parser.kDefaultDelimiter + downSql
+			let sql = upSql + parse.kDefaultDelimiter + downSql
 
 			expect(parse(sql)).deep.equal({
 				up: upSql,
-				down: parser.kDefaultDelimiter + downSql
+				down: parse.kDefaultDelimiter + downSql
 			})
 		})
 	})

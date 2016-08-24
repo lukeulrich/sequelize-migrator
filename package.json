@@ -4,7 +4,7 @@
   "description": "Transactional database migrations using the SequelizeJS library",
   "main": "index.js",
   "scripts": {
-    "test": "npm test"
+    "test": "node_modules/.bin/mocha --reporter ${MOCHA_REPORTER-spec} migration-sql-parse.tests.js"
   },
   "repository": {
     "type": "git",
