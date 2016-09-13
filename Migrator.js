@@ -87,6 +87,8 @@ class Migrator {
 
 		this.migrationFiles_ = null
 		this.model_ = this.createModel_()
+
+		this.searchPath_ = null
 	}
 
 	/**
@@ -109,8 +111,12 @@ class Migrator {
 				}
 
 				this.log_('info', `${numPending} pending migration(s)`)
-				return this.migrationsUp_(pendingMigrations, transaction)
+				return this.saveSearchPath_(transaction)
+				.then(() => this.setSearchPath_(this.schema_, transaction))
+				.then(() => this.migrationsUp_(pendingMigrations, transaction))
+				.then(() => this.setSearchPath_(this.searchPath_, transaction))
 				.then(() => {
+					this.searchPath_ = null
 					this.log_('info', 'Migrations complete')
 				})
 				.catch((error) => {
@@ -141,8 +147,11 @@ class Migrator {
 
 				this.log_('info', `Preparing to undo ${numToUndo} migration(s)`)
 				migrationsToUndo.reverse()
-				return this.migrationsDown_(migrationsToUndo, transaction)
+				return this.saveSearchPath_(transaction)
+				.then(() => this.migrationsDown_(migrationsToUndo, transaction))
+				.then(() => this.setSearchPath_(this.searchPath_, transaction))
 				.then(() => {
+					this.searchPath_ = null
 					this.log_('info', 'Rollback complete')
 				})
 				.catch((error) => {
@@ -250,7 +259,7 @@ class Migrator {
 	 * @returns {Promise}
 	 */
 	lockTable_(transaction) {
-		return this.sequelize_.query(`LOCK TABLE ${this.tableName_} IN ACCESS EXCLUSIVE MODE`,
+		return this.sequelize_.query(`LOCK TABLE ${this.model_.getTableName()} IN ACCESS EXCLUSIVE MODE`,
 			{raw: true, transaction})
 	}
 
@@ -361,5 +370,20 @@ class Migrator {
 	 */
 	rollbackToSavePoint_(transaction) {
 		return this.sequelize_.query(`ROLLBACK TO SAVEPOINT ${kSavePointName}`, {raw: true, transaction})
+	}
+
+	saveSearchPath_(transaction) {
+		return this.sequelize_.query('SHOW search_path', {raw: true, plain: true, transaction})
+		.then((result) => {
+			this.searchPath_ = result.search_path
+		})
+	}
+
+	setSearchPath_(searchPath, transaction) {
+		if (!searchPath)
+			return Promise.resolve()
+
+		this.log_('info', {searchPath}, `Setting search_path to ${searchPath}`)
+		return this.sequelize_.query(`set search_path to ${searchPath}`, {raw: true, transaction})
 	}
 }
