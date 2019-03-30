@@ -114,10 +114,13 @@ class Migrator {
 				return this.saveSearchPath_(transaction)
 				.then(() => this.setSearchPath_(this.schema_, transaction))
 				.then(() => this.migrationsUp_(pendingMigrations, transaction))
-				.then(() => this.setSearchPath_(this.searchPath_, transaction))
-				.then(() => {
-					this.searchPath_ = null
-					this.log_('info', 'Migrations complete')
+				.then((migrations) => {
+					return this.setSearchPath_(this.searchPath_, transaction)
+					.then(() => {
+						this.searchPath_ = null
+						this.log_('info', 'Migrations complete')
+						return migrations.map((migration) => migration.get('name'))
+					})
 				})
 				.catch((error) => {
 					this.log_('fatal', {error}, `Unable to perform the last migration: ${error.message}`)
@@ -149,10 +152,13 @@ class Migrator {
 				migrationsToUndo.reverse()
 				return this.saveSearchPath_(transaction)
 				.then(() => this.migrationsDown_(migrationsToUndo, transaction))
-				.then(() => this.setSearchPath_(this.searchPath_, transaction))
-				.then(() => {
-					this.searchPath_ = null
-					this.log_('info', 'Rollback complete')
+				.then((migrations) => {
+					return this.setSearchPath_(this.searchPath_, transaction)
+					.then(() => {
+						this.searchPath_ = null
+						this.log_('info', 'Rollback complete')
+						return migrations.map((migration) => migration.get('name'))
+					})
 				})
 				.catch((error) => {
 					this.log_('fatal', {error}, `Unable to undo the last migration: ${error.message}`)
