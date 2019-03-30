@@ -1,8 +1,9 @@
 {
   "name": "sequelize-migrator",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Transactional database migrations using the SequelizeJS library",
   "main": "index.js",
+  "types": "types.d.ts",
   "scripts": {
     "test": "node_modules/.bin/mocha --reporter ${MOCHA_REPORTER-spec} migration-sql-parse.tests.js"
   },
