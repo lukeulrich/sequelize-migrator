@@ -349,7 +349,7 @@ class Migrator {
   parseMigration_(migrationFileName) {
     let migrationFile = path.resolve(this.migrationFilePath_, migrationFileName);
     return new Promise((resolve, reject) => {
-      readFile(migrationFile, 'utf8', (error, sql) => {
+      fs.readFile(migrationFile, 'utf8', (error, sql) => {
         if (error) {
           reject(error);
           return;
