@@ -16,10 +16,6 @@ const kSavePointName = 'migrations',
     tableName: 'migrations_meta',
   };
 
-// Other
-let readdir = Promise.promisify(fs.readdir),
-  readFile = Promise.promisify(fs.readFile);
-
 /**
  * @param {Array} a
  * @param {Array} b
@@ -172,8 +168,15 @@ class Migrator {
     if (this.migrationFiles_)
       return Promise.resolve(this.migrationFiles_);
 
-    return readdir(this.migrationFilePath_, 'utf8')
-      .then((files) => files.filter((x) => this.migrationFilePattern_.test(x)).sort());
+    return new Promise((resolve, reject) => {
+      fs.readdir(this.migrationFilePath_, 'utf8', (error, files) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(files);
+      });
+    }).then((files) => files.filter((x) => this.migrationFilePattern_.test(x)).sort());
   }
 
   /**
@@ -345,10 +348,15 @@ class Migrator {
 	 */
   parseMigration_(migrationFileName) {
     let migrationFile = path.resolve(this.migrationFilePath_, migrationFileName);
-    return readFile(migrationFile, 'utf8')
-      .then((sql) => {
-        return migrationSqlParse(sql);
-      });
+    return new Promise((resolve, reject) => {
+      readFile(migrationFile, 'utf8', (error, sql) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(sql);
+      })
+    }).then(migrationSqlParse);
   }
 
   /**
