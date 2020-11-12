@@ -1,50 +1,50 @@
-'use strict'
+'use strict';
 
 // Vendor
-const expect = require('chai').expect
+const expect = require('chai').expect;
 
 // Local
-const parse = require('./migration-sql-parse')
+const parse = require('./migration-sql-parse');
 
 describe('Migration SQL Parser', function() {
-	describe('parse', function() {
-		it('no arguments throws error', function() {
-			expect(function() {
-				parse()
-			}).throw(Error)
-		})
+  describe('parse', function() {
+    it('no arguments throws error', function() {
+      expect(function() {
+        parse();
+      }).throw(Error);
+    });
 
-		it("' ' is valid",
-		function() {
-			expect(parse(' ')).deep.equal({
-				up: ' ',
-				down: null
-			})
-		})
+    it("' ' is valid",
+      function() {
+        expect(parse(' ')).deep.equal({
+          up: ' ',
+          down: null,
+        });
+      });
 
-		it('no optional delimiter returns all as up SQL',
-		function() {
-			let sql = '-- Comment\n' +
-				'create table names (id serial, name text)\n'
+    it('no optional delimiter returns all as up SQL',
+      function() {
+        let sql = '-- Comment\n' +
+				'create table names (id serial, name text)\n';
 
-			expect(parse(sql)).deep.equal({
-				up: sql,
-				down: null
-			})
-		})
+        expect(parse(sql)).deep.equal({
+          up: sql,
+          down: null,
+        });
+      });
 
-		it('returns both up and down SQL with the default delimiter',
-		function() {
-			let upSql = '-- Comment\n' +
-				'create table names (id serial, name text)\n'
-			let downSql = '-- Some down sql\n' +
-				'drop table names'
-			let sql = upSql + parse.kDefaultDelimiter + downSql
+    it('returns both up and down SQL with the default delimiter',
+      function() {
+        let upSql = '-- Comment\n' +
+				'create table names (id serial, name text)\n';
+        let downSql = '-- Some down sql\n' +
+				'drop table names';
+        let sql = upSql + parse.kDefaultDelimiter + downSql;
 
-			expect(parse(sql)).deep.equal({
-				up: upSql,
-				down: parse.kDefaultDelimiter + downSql
-			})
-		})
-	})
-})
+        expect(parse(sql)).deep.equal({
+          up: upSql,
+          down: parse.kDefaultDelimiter + downSql,
+        });
+      });
+  });
+});

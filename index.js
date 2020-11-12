@@ -1,9 +1,10 @@
-'use strict'
+'use strict';
 
 // Local
-let Migrator = require('./Migrator')
+let Migrator = require('./Migrator');
 
 module.exports = function(sequelize, options) {
-	return new Migrator(sequelize, options)
-}
-module.exports.Migrator = Migrator
+  return new Migrator(sequelize, options);
+};
+
+module.exports.Migrator = Migrator;
