@@ -9,12 +9,12 @@ const path = require('path');
 const migrationSqlParse = require('./migration-sql-parse');
 
 // Constants
-const kSavePointName = 'migrations',
-  kDefaults = {
-    pattern: /^\d{14}_\d{4}_[\w-_]+\.sql$/,
-    modelName: 'MigrationMeta',
-    tableName: 'migrations_meta',
-  };
+const kSavePointName = 'migrations';
+const kDefaults = {
+  pattern: /^\d{14}_\d{4}_[\w-_]+\.sql$/,
+  modelName: 'MigrationMeta',
+  tableName: 'migrations_meta',
+};
 
 /**
  * @param {Array} a
@@ -91,36 +91,31 @@ class Migrator {
 	 *
 	 * @returns {Promise.<Array.<String>>} - array of migration file names that were executed
 	 */
-  up() {
-    return this.ensureTableExists_()
-      .then(() => this.sequelize_.transaction((transaction) => {
-        return this.lockTable_(transaction)
-          .then(this.pending.bind(this, transaction))
-          .then((pendingMigrations) => {
-            let numPending = pendingMigrations.length;
-            if (numPending === 0) {
-              this.log_('info', 'No migrations are pending');
-              return null;
-            }
+  async up() {
+    await this.ensureTableExists_();
+    return this.sequelize_.transaction(async (transaction) => {
+      await this.lockTable_(transaction);
+      const pendingMigrations = await this.pending.bind(this, transaction);
+      let numPending = pendingMigrations.length;
+      if (numPending === 0) {
+        this.log_('info', 'No migrations are pending');
+        return null;
+      }
 
-            this.log_('info', `${numPending} pending migration(s)`);
-            return this.saveSearchPath_(transaction)
-              .then(() => this.setSearchPath_(this.schema_, transaction))
-              .then(() => this.migrationsUp_(pendingMigrations, transaction))
-              .then((migrations) => {
-                return this.setSearchPath_(this.searchPath_, transaction)
-                  .then(() => {
-                    this.searchPath_ = null;
-                    this.log_('info', 'Migrations complete');
-                    return migrations.map((migration) => migration.get('name'));
-                  });
-              })
-              .catch((error) => {
-                this.log_('fatal', {error}, `Unable to perform the last migration: ${error.message}`);
-                throw error;
-              });
-          });
-      }));
+      this.log_('info', `${numPending} pending migration(s)`);
+      try {
+        await this.saveSearchPath_(transaction);
+        await this.setSearchPath_(this.schema_, transaction);
+        const migrations = await this.migrationsUp_(pendingMigrations, transaction);
+        await this.setSearchPath_(this.searchPath_, transaction);
+        this.searchPath_ = null;
+        this.log_('info', 'Migrations complete');
+        return migrations.map((migration) => migration.get('name'));
+      } catch (error) {
+        this.log_('fatal', {error}, `Unable to perform the last migration: ${error.message}`);
+        throw error;
+      }
+    });
   }
 
   /**
@@ -129,44 +124,40 @@ class Migrator {
 	 * @param {Number} [optAmount=1] - number of migrations to rollback
 	 * @returns {Promise.<Array.<String>>}
 	 */
-  down(optAmount = 1) {
-    return this.ensureTableExists_()
-      .then(() => this.sequelize_.transaction((transaction) => {
-        return this.lockTable_(transaction)
-          .then(this.recentlyExecuted.bind(this, optAmount, transaction))
-          .then((migrationsToUndo) => {
-            let numToUndo = migrationsToUndo.length;
-            if (numToUndo === 0) {
-              this.log_('info', 'No migrations found');
-              return null;
-            }
+  async down(optAmount = 1) {
+    await this.ensureTableExists_();
+    return this.sequelize_.transaction(async (transaction) => {
+      await this.lockTable_(transaction)
+      const migrationsToUndo = await this.recentlyExecuted.bind(this, optAmount, transaction);
+      let numToUndo = migrationsToUndo.length;
+      if (numToUndo === 0) {
+        this.log_('info', 'No migrations found that may be undone');
+        return null;
+      }
 
-            this.log_('info', `Preparing to undo ${numToUndo} migration(s)`);
-            migrationsToUndo.reverse();
-            return this.saveSearchPath_(transaction)
-              .then(() => this.migrationsDown_(migrationsToUndo, transaction))
-              .then((migrations) => {
-                return this.setSearchPath_(this.searchPath_, transaction)
-                  .then(() => {
-                    this.searchPath_ = null;
-                    this.log_('info', 'Rollback complete');
-                    return migrations.map((migration) => migration.get('name'));
-                  });
-              })
-              .catch((error) => {
-                this.log_('fatal', {error}, `Unable to undo the last migration: ${error.message}`);
-                throw error;
-              });
-          });
-      }));
+      this.log_('info', `Preparing to undo ${numToUndo} migration(s)`);
+      migrationsToUndo.reverse();
+      try {
+        await this.saveSearchPath_(transaction);
+        const migrations = await this.migrationsDown_(migrationsToUndo, transaction);
+        await this.setSearchPath_(this.searchPath_, transaction);
+        this.searchPath_ = null;
+        this.log_('info', 'Rollback complete');
+        return migrations.map((migration) => migration.get('name'));
+      } catch (error) {
+        this.log_('fatal', {error}, `Unable to undo the last migration: ${error.message}`);
+        throw error;
+      }
+    });
   }
 
   /**
 	 * @returns {Promise.<Array.<String>>} - lexically sorted list of matching migration files
 	 */
   migrationFiles() {
-    if (this.migrationFiles_)
+    if (this.migrationFiles_) {
       return Promise.resolve(this.migrationFiles_);
+    }
 
     return new Promise((resolve, reject) => {
       fs.readdir(this.migrationFilePath_, 'utf8', (error, files) => {
@@ -205,28 +196,26 @@ class Migrator {
 	 * @param {Transaction} [optTransaction]
 	 * @returns {Promise.<Array.<Model>>}
 	 */
-  recentlyExecuted(optAmount = 1, optTransaction = null) {
-    let amount = Math.max(1, optAmount);
-    return this.executed(optTransaction)
-      .then((executedMigrations) => executedMigrations.slice(-amount));
+  async recentlyExecuted(optAmount = 1, optTransaction = null) {
+    const amount = Math.max(1, optAmount);
+    const executedMigrations = this.executed(optTransaction);
+    return executedMigrations.slice(-amount);
   }
 
   /**
 	 * @param {Transaction} [optTransaction]
 	 * @returns {Promise.<Array.<Model>>} - ordered array of migration instances that have not yet been executed
 	 */
-  pending(optTransaction) {
-    return Promise.all([
+  async pending(optTransaction) {
+    const [migrationFiles, executedMigrations] = await Promise.all([
       this.migrationFiles(),
       this.executed(optTransaction),
-    ])
-      .spread((migrationFiles, executedMigrations) => {
-        let executedFileNames = executedMigrations.map((x) => x.name),
-          pendingMigrationFileNames = difference(migrationFiles, executedFileNames);
-        pendingMigrationFileNames.sort();
-        let pendingMigrations = pendingMigrationFileNames.map((x) => this.model_.build({name: x}));
-        return pendingMigrations;
-      });
+    ]);
+    const executedFileNames = executedMigrations.map((x) => x.name);
+    const pendingMigrationFileNames = difference(migrationFiles, executedFileNames);
+    pendingMigrationFileNames.sort();
+    const pendingMigrations = pendingMigrationFileNames.map((x) => this.model_.build({name: x}));
+    return pendingMigrations;
   }
 
   // ----------------------------------------------------
@@ -235,20 +224,20 @@ class Migrator {
 	 * @returns {Model}
 	 */
   createModel_() {
-    let fields = {
-        name: {
-          type: this.sequelize_.constructor.TEXT,
-          allowNull: false,
-          unique: true,
-        },
+    const fields = {
+      name: {
+        type: this.sequelize_.constructor.TEXT,
+        allowNull: false,
+        unique: true,
       },
-      params = {
-        tableName: this.tableName_,
-        schema: this.schema_,
-        charset: 'utf8',
-        timestamps: true,
-        updatedAt: false,
-      };
+    };
+    const params = {
+      tableName: this.tableName_,
+      schema: this.schema_,
+      charset: 'utf8',
+      timestamps: true,
+      updatedAt: false,
+    };
 
     return this.sequelize_.define(this.modelName_, fields, params);
   }
@@ -276,8 +265,9 @@ class Migrator {
 	 * @param {...*} params arguments to pass to the logger
 	 */
   log_(method, ...params) {
-    if (this.logger_)
+    if (this.logger_) {
       this.logger_[method](...params);
+    }
   }
 
   /**
@@ -285,30 +275,28 @@ class Migrator {
 	 * @param {Transaction} transaction - sequelize transaction
 	 * @returns {Promise.<Array.<Model>>} - list of executed transactions
 	 */
-  migrationsUp_(migrations, transaction) {
-    return Promise.each(migrations, (migration) => {
+  async migrationsUp_(migrations, transaction) {
+    for (const migration of migrations) {
       this.log_('info', {fileName: migration.name}, `  >> ${migration.name}`);
 
-      return this.parseMigration_(migration.name)
-        .then((migrationSql) => {
-          let sql = migrationSql.up;
-          if (!sql)
-            throw new Error(`cannot run migration, ${migration.name}: missing 'up' SQL`);
+      const migrationSql = await this.parseMigration_(migration.name);
+      let sql = migrationSql.up;
+      if (!sql) {
+        throw new Error(`cannot run migration, ${migration.name}: missing 'up' SQL`);
+      }
 
-          return this.savePoint_(transaction)
-            .then(() => this.sequelize_.query(sql, {raw: true, transaction}))
-            .catch((error) => {
-              return this.rollbackToSavePoint_(transaction)
-                .then(() => transaction.commit())
-                .then(() => {
-                  throw error;
-                });
-            })
-            .then(() => this.releaseSavePoint_(transaction));
-        })
-        .then(() => migration.save({transaction}));
-    })
-      .then(() => migrations);
+      await this.savePoint_(transaction);
+      try {
+        await this.sequelize_.query(sql, {raw: true, transaction});
+      } catch (error) {
+        await this.rollbackToSavePoint_(transaction);
+        await transaction.commit();
+        throw error;
+      }
+      await this.releaseSavePoint_(transaction);
+      await migration.save({transaction});
+    }
+    return migrations;
   }
 
   /**
@@ -316,30 +304,28 @@ class Migrator {
 	 * @param {Transaction} transaction - sequelize transaction
 	 * @returns {Promise.<Array.<Model>>} - list of executed transactions
 	 */
-  migrationsDown_(migrations, transaction) {
-    return Promise.each(migrations, (migration) => {
+  async migrationsDown_(migrations, transaction) {
+    for (const migration of migrations) {
       this.log_('info', {fileName: migration.name}, `  << Reverting ${migration.name}`);
 
-      return this.parseMigration_(migration.name)
-        .then((migrationSql) => {
-          let sql = migrationSql.down;
-          if (!sql)
-            throw new Error(`cannot run migration, ${migration.name}: missing 'down' SQL`);
+      const migrationSql = await this.parseMigration_(migration.name);
+      let sql = migrationSql.down;
+      if (!sql) {
+        throw new Error(`cannot run migration, ${migration.name}: missing 'down' SQL`);
+      }
 
-          return this.savePoint_(transaction)
-            .then(() => this.sequelize_.query(sql, {raw: true, transaction}))
-            .catch((error) => {
-              return this.rollbackToSavePoint_(transaction)
-                .then(() => transaction.commit())
-                .then(() => {
-                  throw error;
-                });
-            })
-            .then(() => this.releaseSavePoint_(transaction));
-        })
-        .then(() => migration.destroy({transaction}));
-    })
-      .then(() => migrations);
+      await this.savePoint_(transaction)
+      try {
+        await this.sequelize_.query(sql, {raw: true, transaction});
+      } catch (error) {
+        await this.rollbackToSavePoint_(transaction);
+        await transaction.commit();
+        throw error;
+      }
+      await this.releaseSavePoint_(transaction);
+      await migration.destroy({transaction});
+    }
+    return migrations;
   }
 
   /**
@@ -347,7 +333,7 @@ class Migrator {
 	 * @returns {Promise.<Object>} - migration sql split into up / down SQL chunks
 	 */
   parseMigration_(migrationFileName) {
-    let migrationFile = path.resolve(this.migrationFilePath_, migrationFileName);
+    const migrationFile = path.resolve(this.migrationFilePath_, migrationFileName);
     return new Promise((resolve, reject) => {
       fs.readFile(migrationFile, 'utf8', (error, sql) => {
         if (error) {
@@ -391,8 +377,9 @@ class Migrator {
   }
 
   setSearchPath_(searchPath, transaction) {
-    if (!searchPath)
+    if (!searchPath) {
       return Promise.resolve();
+    }
 
     this.log_('info', {searchPath}, `Setting search_path to ${searchPath}`);
     return this.sequelize_.query(`set search_path to ${searchPath}`, {raw: true, transaction});
