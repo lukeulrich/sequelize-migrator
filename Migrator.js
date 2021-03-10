@@ -95,7 +95,7 @@ class Migrator {
     await this.ensureTableExists_();
     return this.sequelize_.transaction(async (transaction) => {
       await this.lockTable_(transaction);
-      const pendingMigrations = await this.pending.bind(this, transaction);
+      const pendingMigrations = await this.pending(transaction);
       let numPending = pendingMigrations.length;
       if (numPending === 0) {
         this.log_('info', 'No migrations are pending');
@@ -128,7 +128,7 @@ class Migrator {
     await this.ensureTableExists_();
     return this.sequelize_.transaction(async (transaction) => {
       await this.lockTable_(transaction)
-      const migrationsToUndo = await this.recentlyExecuted.bind(this, optAmount, transaction);
+      const migrationsToUndo = await this.recentlyExecuted(optAmount, transaction);
       let numToUndo = migrationsToUndo.length;
       if (numToUndo === 0) {
         this.log_('info', 'No migrations found that may be undone');
@@ -198,7 +198,7 @@ class Migrator {
 	 */
   async recentlyExecuted(optAmount = 1, optTransaction = null) {
     const amount = Math.max(1, optAmount);
-    const executedMigrations = this.executed(optTransaction);
+    const executedMigrations = await this.executed(optTransaction);
     return executedMigrations.slice(-amount);
   }
 
